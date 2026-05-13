@@ -113,6 +113,12 @@ async def on_ready():
 @bot.tree.command(name="sendrole", description="ロール付与ボタンを送信する")
 @app_commands.describe(description="説明文", roles="ロール名をスペース区切りで")
 async def sendrole(interaction: discord.Interaction, description: str, roles: str):
+
+    # 管理者チェック
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.response.send_message("このコマンドは管理者のみ使用できます。", ephemeral=True)
+        return
+
     role_names = roles.split()
     guild_roles = []
 
@@ -133,12 +139,19 @@ async def sendrole(interaction: discord.Interaction, description: str, roles: st
     view = RoleGiveView(guild_roles)
     await interaction.response.send_message(embed=embed, view=view)
 
+
 # ---------------------------------------------------------
 # /sendderole（剥奪）
 # ---------------------------------------------------------
 @bot.tree.command(name="sendderole", description="ロール剥奪ボタンを送信する")
 @app_commands.describe(description="説明文", roles="ロール名をスペース区切りで")
 async def sendderole(interaction: discord.Interaction, description: str, roles: str):
+
+    # 管理者チェック
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.response.send_message("このコマンドは管理者のみ使用できます。", ephemeral=True)
+        return
+
     role_names = roles.split()
     guild_roles = []
 
@@ -159,12 +172,19 @@ async def sendderole(interaction: discord.Interaction, description: str, roles: 
     view = RoleRemoveView(guild_roles)
     await interaction.response.send_message(embed=embed, view=view)
 
+
 # ---------------------------------------------------------
 # /sendcer（認証）
 # ---------------------------------------------------------
 @bot.tree.command(name="sendcer", description="認証ボタンを送信する")
 @app_commands.describe(description="説明文", role_name="ロール名")
 async def sendcer(interaction: discord.Interaction, description: str, role_name: str):
+
+    # 管理者チェック
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.response.send_message("このコマンドは管理者のみ使用できます。", ephemeral=True)
+        return
+
     role = discord.utils.get(interaction.guild.roles, name=role_name)
     if not role:
         await interaction.response.send_message("そのロールが見つからないよ。", ephemeral=True)
@@ -179,6 +199,7 @@ async def sendcer(interaction: discord.Interaction, description: str, role_name:
 
     view = VerifyView(role)
     await interaction.response.send_message(embed=embed, view=view)
+
 
 # ---------------------------------------------------------
 # DMで認証コードを受信
