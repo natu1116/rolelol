@@ -110,10 +110,9 @@ async def on_ready():
     print(f"Logged in as {bot.user}")
     await bot.tree.sync()
 
-    # 永続ビュー登録（ロールはダミーでOK）
+    # 永続ビュー登録（ロール付与・剥奪のみ）
     bot.add_view(RoleGiveView([]))
     bot.add_view(RoleRemoveView([]))
-    bot.add_view(VerifyView(None))
 
     print("Persistent Views loaded.")
 
