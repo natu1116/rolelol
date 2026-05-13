@@ -1,4 +1,5 @@
 import os
+import random
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -10,11 +11,16 @@ TOKEN = os.getenv("TOKEN")
 
 intents = discord.Intents.default()
 intents.members = True
+intents.message_content = True  # DM受信に必要
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+# 認証待ちユーザー
+pending_verifications = {}  
+# { user_id: {"code": "1234", "role": role_object} }
+
 # -------------------------
-# ボタンビュー（付与 / 剥奪）
+# ロール付与ボタン
 # -------------------------
 class RoleGiveView(discord.ui.View):
     def __init__(self, roles):
@@ -24,13 +30,16 @@ class RoleGiveView(discord.ui.View):
 
 class RoleGiveButton(discord.ui.Button):
     def __init__(self, role):
-        super().__init__(label=f"{role.name}", style=discord.ButtonStyle.primary, custom_id=f"give_{role.id}")
+        super().__init__(label=f"{role.name}", style=discord.ButtonStyle.primary)
         self.role = role
 
     async def callback(self, interaction: discord.Interaction):
         await interaction.user.add_roles(self.role)
         await interaction.response.send_message(f"{self.role.name} を付与したよ！", ephemeral=True)
 
+# -------------------------
+# ロール剥奪ボタン
+# -------------------------
 class RoleRemoveView(discord.ui.View):
     def __init__(self, roles):
         super().__init__()
@@ -39,7 +48,7 @@ class RoleRemoveView(discord.ui.View):
 
 class RoleRemoveButton(discord.ui.Button):
     def __init__(self, role):
-        super().__init__(label=f"{role.name}", style=discord.ButtonStyle.danger, custom_id=f"remove_{role.id}")
+        super().__init__(label=f"{role.name}", style=discord.ButtonStyle.danger)
         self.role = role
 
     async def callback(self, interaction: discord.Interaction):
@@ -47,16 +56,44 @@ class RoleRemoveButton(discord.ui.Button):
         await interaction.response.send_message(f"{self.role.name} を剥奪したよ！", ephemeral=True)
 
 # -------------------------
+# 認証ボタン
+# -------------------------
+class VerifyView(discord.ui.View):
+    def __init__(self, role):
+        super().__init__()
+        self.add_item(VerifyButton(role))
+
+class VerifyButton(discord.ui.Button):
+    def __init__(self, role):
+        super().__init__(label="認証する", style=discord.ButtonStyle.primary)
+        self.role = role
+
+    async def callback(self, interaction: discord.Interaction):
+        user = interaction.user
+
+        # ランダム4桁コード生成
+        code = str(random.randint(1000, 9999))
+
+        # 保存
+        pending_verifications[user.id] = {
+            "code": code,
+            "role": self.role
+        }
+
+        # DM送信
+        try:
+            await user.send(f"あなたの認証コードは **{code}** です。\nこのDMにそのまま送ってください。")
+            await interaction.response.send_message("DMに認証コードを送ったよ！", ephemeral=True)
+        except:
+            await interaction.response.send_message("DMを送れなかったよ。DMを開放してね。", ephemeral=True)
+
+# -------------------------
 # Bot Ready
 # -------------------------
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user}")
-    try:
-        synced = await bot.tree.sync()
-        print(f"Slash commands synced: {len(synced)}")
-    except Exception as e:
-        print(e)
+    await bot.tree.sync()
 
 # -------------------------
 # /sendrole（付与）
@@ -109,6 +146,60 @@ async def sendderole(interaction: discord.Interaction, description: str, roles: 
 
     view = RoleRemoveView(guild_roles)
     await interaction.response.send_message(embed=embed, view=view)
+
+# -------------------------
+# /sendcer（認証）
+# -------------------------
+@bot.tree.command(name="sendcer", description="認証ボタンを送信する")
+@app_commands.describe(description="説明文", role_name="ロール名")
+async def sendcer(interaction: discord.Interaction, description: str, role_name: str):
+    role = discord.utils.get(interaction.guild.roles, name=role_name)
+    if not role:
+        await interaction.response.send_message("そのロールが見つからないよ。", ephemeral=True)
+        return
+
+    embed = discord.Embed(
+        title="認証",
+        description=description,
+        color=discord.Color.blue()
+    )
+    embed.add_field(name="付与されるロール", value=role.name, inline=False)
+
+    view = VerifyView(role)
+    await interaction.response.send_message(embed=embed, view=view)
+
+# -------------------------
+# DMで認証コードを受信
+# -------------------------
+@bot.event
+async def on_message(message):
+    if message.author.bot:
+        return
+
+    # DM以外は無視
+    if message.guild is not None:
+        return
+
+    user_id = message.author.id
+
+    if user_id not in pending_verifications:
+        await message.channel.send("認証コードが発行されていないよ。")
+        return
+
+    data = pending_verifications[user_id]
+    code = data["code"]
+    role = data["role"]
+
+    if message.content.strip() == code:
+        guild = role.guild
+        member = guild.get_member(user_id)
+        await member.add_roles(role)
+
+        await message.channel.send(f"認証成功！ロール **{role.name}** を付与したよ！")
+
+        del pending_verifications[user_id]
+    else:
+        await message.channel.send("コードが違うよ。もう一度送ってね。")
 
 # -------------------------
 # Run
