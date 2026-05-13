@@ -37,48 +37,50 @@ pending_verifications = {}
 # ---------------------------------------------------------
 class RoleGiveView(discord.ui.View):
     def __init__(self, roles):
-        super().__init__()
+        super().__init__(timeout=None)  # ← 永続化
         for role in roles:
             self.add_item(RoleGiveButton(role))
 
 class RoleGiveButton(discord.ui.Button):
     def __init__(self, role):
-        super().__init__(label=f"{role.name}", style=discord.ButtonStyle.primary)
+        super().__init__(label=f"{role.name}", style=discord.ButtonStyle.primary, custom_id=f"give_{role.id}")
         self.role = role
 
     async def callback(self, interaction: discord.Interaction):
         await interaction.user.add_roles(self.role)
         await interaction.response.send_message(f"{self.role.name} を付与したよ！", ephemeral=True)
 
+
 # ---------------------------------------------------------
 # ロール剥奪ボタン
 # ---------------------------------------------------------
 class RoleRemoveView(discord.ui.View):
     def __init__(self, roles):
-        super().__init__()
+        super().__init__(timeout=None)  # ← 永続化
         for role in roles:
             self.add_item(RoleRemoveButton(role))
 
 class RoleRemoveButton(discord.ui.Button):
     def __init__(self, role):
-        super().__init__(label=f"{role.name}", style=discord.ButtonStyle.danger)
+        super().__init__(label=f"{role.name}", style=discord.ButtonStyle.danger, custom_id=f"remove_{role.id}")
         self.role = role
 
     async def callback(self, interaction: discord.Interaction):
         await interaction.user.remove_roles(self.role)
         await interaction.response.send_message(f"{self.role.name} を剥奪したよ！", ephemeral=True)
 
+
 # ---------------------------------------------------------
 # 認証ボタン
 # ---------------------------------------------------------
 class VerifyView(discord.ui.View):
     def __init__(self, role):
-        super().__init__()
+        super().__init__(timeout=None)  # ← 永続化
         self.add_item(VerifyButton(role))
 
 class VerifyButton(discord.ui.Button):
     def __init__(self, role):
-        super().__init__(label="認証する", style=discord.ButtonStyle.primary)
+        super().__init__(label="認証する", style=discord.ButtonStyle.primary, custom_id=f"verify_{role.id}")
         self.role = role
 
     async def callback(self, interaction: discord.Interaction):
@@ -99,6 +101,7 @@ class VerifyButton(discord.ui.Button):
             ephemeral=True
         )
 
+
 # ---------------------------------------------------------
 # Bot Ready
 # ---------------------------------------------------------
@@ -106,6 +109,14 @@ class VerifyButton(discord.ui.Button):
 async def on_ready():
     print(f"Logged in as {bot.user}")
     await bot.tree.sync()
+
+    # 永続ビュー登録（ロールはダミーでOK）
+    bot.add_view(RoleGiveView([]))
+    bot.add_view(RoleRemoveView([]))
+    bot.add_view(VerifyView(None))
+
+    print("Persistent Views loaded.")
+
 
 # ---------------------------------------------------------
 # /sendrole（付与）
