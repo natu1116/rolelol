@@ -71,6 +71,11 @@ class RoleRemoveButton(discord.ui.Button):
 # ---------------------------------------------------------
 # 認証ボタン
 # ---------------------------------------------------------
+class VerifyView(discord.ui.View):
+    def __init__(self, role):
+        super().__init__()
+        self.add_item(VerifyButton(role))
+
 class VerifyButton(discord.ui.Button):
     def __init__(self, role):
         super().__init__(label="認証する", style=discord.ButtonStyle.primary)
@@ -88,7 +93,7 @@ class VerifyButton(discord.ui.Button):
             "role": self.role
         }
 
-        # ここを DM → ephemeral に変更
+        # ephemeral でコードを送る
         await interaction.response.send_message(
             f"あなたの認証コードは **{code}** です。\nこのコードを Bot の DM に送ってください。",
             ephemeral=True
